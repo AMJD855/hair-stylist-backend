@@ -1,32 +1,25 @@
-# استخدام نسخة بايثون نحيفة ومستقرة
-FROM python:3.10-slim
+# 1. استخدام نسخة كاملة مبنية على Ubuntu (أكثر استقراراً في التحميل)
+FROM python:3.10
 
-# منع التوقف لطلبات الإدخال وتحديد المنطقة الزمنية
+# 2. تعيين متغيرات البيئة الأساسية
+ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# تغيير مصادر الحزم إلى مرايا أكثر استقراراً وإضافة محاولات إعادة الاتصال
-RUN sed -i 's/deb.debian.org/ftp.us.debian.org/g' /etc/apt/sources.list && \
-    apt-get clean && \
-    apt-get update --fix-missing && \
-    apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# 3. تثبيت المكتبات بأبسط صورة ممكنة (أضفنا محاولات إعادة الاتصال)
+RUN apt-get update && \
+    apt-get install -y libgl1 libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
 
+# 4. إعداد المجلد والملفات
 WORKDIR /app
-
-# تحديث pip وتثبيت المتطلبات
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# 5. نسخ المشروع
 COPY . .
 
+# 6. تشغيل التطبيق
 EXPOSE 10000
-
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
 
