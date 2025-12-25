@@ -1,26 +1,39 @@
-# 1. اختيار نسخة بايثون متوافقة تماماً مع MediaPipe
+# 1. استخدام نسخة بايثون مستقرة متوافقة مع MediaPipe
 FROM python:3.10-slim
 
-# 2. تثبيت المكتبات البرمجية التي يحتاجها OpenCV للعمل في بيئة Linux
-# هذه الخطوة ضرورية لتجنب أخطاء "libGL.so.1" المشهورة
-RUN apt-get update && apt-get install -y \
+# 2. منع بايثون من إنشاء ملفات .pyc وتقليل حجم الحاوية
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 3. تحديث المستودعات وتثبيت مكتبات النظام اللازمة لـ OpenCV و MediaPipe
+# تم إضافة --fix-missing وتكرار محاولة التحديث لتجنب خطأ 100
+RUN apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. تحديد مجلد العمل داخل الحاوية
+# 4. تحديد مجلد العمل داخل الحاوية
 WORKDIR /app
 
-# 4. نسخ ملف المتطلبات أولاً لتسريع عملية البناء (Caching)
+# 5. نسخ ملف المتطلبات أولاً (للاستفادة من Cache في Render)
 COPY requirements.txt .
 
-# 5. تثبيت المكتبات
-RUN pip install --no-cache-dir -r requirements.txt
+# 6. تحديث pip وتثبيت المكتبات البرمجية
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# 6. نسخ باقي ملفات المشروع إلى داخل الحاوية
+# 7. نسخ كافة ملفات المشروع إلى الحاوية
 COPY . .
 
-# 7. تشغيل السيرفر
-# نستخدم البورت 10000 لأنه الافتراضي في Render
+# 8. فتح المنفذ الذي يستخدمه Render تلقائياً
+EXPOSE 10000
+
+# 9. أمر تشغيل السيرفر باستخدام uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
 
